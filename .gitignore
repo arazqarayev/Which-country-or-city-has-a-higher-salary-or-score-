@@ -1,207 +1,101 @@
-# Byte-compiled / optimized / DLL files
-__pycache__/
-*.py[codz]
-*$py.class
+# DATA CLEANING PIPELINE
+# ======================================================
+# 1️⃣ Import Libraries
+import numpy as np
+import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
 
-# C extensions
-*.so
+# ------------------------------------------------------
+# 2️⃣ Load Dataset
+# ------------------------------------------------------
+df = pd.read_csv(r'C:\Users\User\OneDrive\Desktop\data\cleaned_data.csv')
 
-# Distribution / packaging
-.Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-share/python-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-MANIFEST
+# Quick look
+df.head()
+df.dtypes
 
-# PyInstaller
-#  Usually these files are written by a python script from a template
-#  before PyInstaller builds the exe, so as to inject date/other infos into it.
-*.manifest
-*.spec
+# ------------------------------------------------------
+# 3️⃣ Clean 'Easy Apply' Column
+# ------------------------------------------------------
+# Convert all values to string for consistency
+df['Easy Apply'] = df['Easy Apply'].astype(str)
 
-# Installer logs
-pip-log.txt
-pip-delete-this-directory.txt
+# Map TRUE → True, all other values → False
+df['Easy Apply'] = df['Easy Apply'].apply(lambda x: True if x.upper() == 'TRUE' else False)
 
-# Unit test / coverage reports
-htmlcov/
-.tox/
-.nox/
-.coverage
-.coverage.*
-.cache
-nosetests.xml
-coverage.xml
-*.cover
-*.py.cover
-.hypothesis/
-.pytest_cache/
-cover/
+# Check results
+df['Easy Apply'].unique()
+df.head()
 
-# Translations
-*.mo
-*.pot
+# ------------------------------------------------------
+# 4️⃣ Explore 'Established' Column
+# ------------------------------------------------------
+# Check unique values and missing ratio
+df['Established'].unique()
+df['Established'].isna().mean() * 100
 
-# Django stuff:
-*.log
-local_settings.py
-db.sqlite3
-db.sqlite3-journal
+# Calculate how many '-1' values exist
+(df['Established'] == -1).mean() * 100
 
-# Flask stuff:
-instance/
-.webassets-cache
+# ------------------------------------------------------
+# 5️⃣ Check Missing Data in All Columns
+# ------------------------------------------------------
+df.isna().mean() * 100
+# Expected:
+# Index           0.000000
+# Age            24.137931
+# Salary          0.000000
+# Rating          3.448276
+# etc.
 
-# Scrapy stuff:
-.scrapy
+# ------------------------------------------------------
+# 6️⃣ Handle Missing Data
+# ------------------------------------------------------
 
-# Sphinx documentation
-docs/_build/
+# (a) Drop rows where Rating is NaN
+df = df.dropna(subset=['Rating'])
 
-# PyBuilder
-.pybuilder/
-target/
+# (b) Fill missing Age values with median
+df['Age'] = df['Age'].fillna(df['Age'].median())
 
-# Jupyter Notebook
-.ipynb_checkpoints
+# (c) Replace -1 with NaN in 'Established'
+df['Established'] = df['Established'].replace(-1, np.nan)
 
-# IPython
-profile_default/
-ipython_config.py
+# (d) Fill missing 'Established' values with median
+df['Established'] = df['Established'].fillna(df['Established'].median())
 
-# pyenv
-#   For a library or package, you might want to ignore these files since the code is
-#   intended to run in multiple environments; otherwise, check them in:
-# .python-version
+# ------------------------------------------------------
+# 7️⃣ Convert 'Established' to Integer
+# ------------------------------------------------------
+# (1999.0 → 1999)
+df['Established'] = df['Established'].astype(int)
 
-# pipenv
-#   According to pypa/pipenv#598, it is recommended to include Pipfile.lock in version control.
-#   However, in case of collaboration, if having platform-specific dependencies or dependencies
-#   having no cross-platform support, pipenv may install dependencies that don't work, or not
-#   install all needed dependencies.
-#Pipfile.lock
+# ------------------------------------------------------
+# 8️⃣ Final Checks
+# ------------------------------------------------------
+print("✅ Missing Value Percentages:")
+print(df.isna().mean() * 100)
 
-# UV
-#   Similar to Pipfile.lock, it is generally recommended to include uv.lock in version control.
-#   This is especially recommended for binary packages to ensure reproducibility, and is more
-#   commonly ignored for libraries.
-#uv.lock
+print("\n✅ Data Types:")
+print(df.dtypes)
+df.head()
 
-# poetry
-#   Similar to Pipfile.lock, it is generally recommended to include poetry.lock in version control.
-#   This is especially recommended for binary packages to ensure reproducibility, and is more
-#   commonly ignored for libraries.
-#   https://python-poetry.org/docs/basic-usage/#commit-your-poetrylock-file-to-version-control
-#poetry.lock
-#poetry.toml
+# "$" ve "k" karakterlerini kaldır
+df['Salary'] = df['Salary'].str.replace('$', '', regex=False)
+df['Salary'] = df['Salary'].str.replace('k', '', regex=False)
+# Örneğin "44-99" → iki sütuna ayır
+df[['Salary_min', 'Salary_max']] = df['Salary'].str.split('-', expand=True)
+df['Salary_min'] = pd.to_numeric(df['Salary_min'], errors='coerce')
+df['Salary_max'] = pd.to_numeric(df['Salary_max'], errors='coerce')
+df['Salary_mid'] = (df['Salary_min'] + df['Salary_max']) / 2
+df.head()
 
-# pdm
-#   Similar to Pipfile.lock, it is generally recommended to include pdm.lock in version control.
-#   pdm recommends including project-wide configuration in pdm.toml, but excluding .pdm-python.
-#   https://pdm-project.org/en/latest/usage/project/#working-with-version-control
-#pdm.lock
-#pdm.toml
-.pdm-python
-.pdm-build/
+corr = df[['Age', 'Rating', 'Established', 'Salary_mid']].corr()
+plt.figure(figsize=(8,6))
+sns.heatmap(corr, annot=True, cmap='coolwarm')
+plt.title('Korelasyon Matrisi (Age, Rating, Established, Salary_mid)')
+plt.show()
 
-# pixi
-#   Similar to Pipfile.lock, it is generally recommended to include pixi.lock in version control.
-#pixi.lock
-#   Pixi creates a virtual environment in the .pixi directory, just like venv module creates one
-#   in the .venv directory. It is recommended not to include this directory in version control.
-.pixi
 
-# PEP 582; used by e.g. github.com/David-OConnor/pyflow and github.com/pdm-project/pdm
-__pypackages__/
 
-# Celery stuff
-celerybeat-schedule
-celerybeat.pid
-
-# SageMath parsed files
-*.sage.py
-
-# Environments
-.env
-.envrc
-.venv
-env/
-venv/
-ENV/
-env.bak/
-venv.bak/
-
-# Spyder project settings
-.spyderproject
-.spyproject
-
-# Rope project settings
-.ropeproject
-
-# mkdocs documentation
-/site
-
-# mypy
-.mypy_cache/
-.dmypy.json
-dmypy.json
-
-# Pyre type checker
-.pyre/
-
-# pytype static type analyzer
-.pytype/
-
-# Cython debug symbols
-cython_debug/
-
-# PyCharm
-#  JetBrains specific template is maintained in a separate JetBrains.gitignore that can
-#  be found at https://github.com/github/gitignore/blob/main/Global/JetBrains.gitignore
-#  and can be added to the global gitignore or merged into this file.  For a more nuclear
-#  option (not recommended) you can uncomment the following to ignore the entire idea folder.
-#.idea/
-
-# Abstra
-# Abstra is an AI-powered process automation framework.
-# Ignore directories containing user credentials, local state, and settings.
-# Learn more at https://abstra.io/docs
-.abstra/
-
-# Visual Studio Code
-#  Visual Studio Code specific template is maintained in a separate VisualStudioCode.gitignore 
-#  that can be found at https://github.com/github/gitignore/blob/main/Global/VisualStudioCode.gitignore
-#  and can be added to the global gitignore or merged into this file. However, if you prefer, 
-#  you could uncomment the following to ignore the entire vscode folder
-# .vscode/
-
-# Ruff stuff:
-.ruff_cache/
-
-# PyPI configuration file
-.pypirc
-
-# Cursor
-#  Cursor is an AI-powered code editor. `.cursorignore` specifies files/directories to
-#  exclude from AI features like autocomplete and code analysis. Recommended for sensitive data
-#  refer to https://docs.cursor.com/context/ignore-files
-.cursorignore
-.cursorindexingignore
-
-# Marimo
-marimo/_static/
-marimo/_lsp/
-__marimo__/
